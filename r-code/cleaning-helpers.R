@@ -107,31 +107,3 @@ get_team_events <- function(whichteam, tb){
   out %>% group_by(team) %>% nest(.key = `team events`)
   
 }
-
-## At this point, we can use the functions we've built above to construct our desired nested data table
-
-library(tidyverse)
-
-tbraw <- read_csv("data/sample-combined-pbp-stats.csv") 
-
-teamsandplayers <- tbraw %>% 
-  filter(elapsed > 0) %>% #eliminates weird cases like opening jump ball
-  select(player, team) %>% 
-  filter(!is.na(player)) %>% 
-  distinct() 
-
-tb <- tbraw %>% 
-  mutate(hometeam = get_team(h1, teamsandplayers),
-         awayteam = get_team(a1, teamsandplayers),
-         pointchange = map_lgl(points, score_changed)) 
-
-
-allteams <- tb %>% 
-  filter(elapsed > 0) %>% #eliminates weird cases like opening jump ball
-  select(team) %>% 
-  filter(!is.na(team)) %>% 
-  distinct() 
-tmp <- left_join(allteams, get_team_events(allteams, tb))
-
-
-write_rds(tmp, "clean-data/team-events.rds")

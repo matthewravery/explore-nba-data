@@ -21,9 +21,12 @@ tmp <- tmp %>%
 
 # Here, we verify that we can take this table and get our desired five-man plus-minus results
 
-tmp %>% filter(team == "BOS") %>% select(`Five-man Plus/Minus`) %>% unnest()
-
-
+tmp %>% filter(team == "BOS") %>% select(`Five-man Plus/Minus`) %>% unnest() %>% 
+  group_by(p1, p2, p3, p4, p5) %>% 
+  filter(unittime > 0) %>% 
+  summarise(tpm = sum(`Plus/Minus`),
+            ttime = sum(unittime)) %>% 
+  mutate(normpm = tpm * 3600 / ttime)
 
 #exploratory stuff and getting the right numbers for time elapsed with each unit
 
