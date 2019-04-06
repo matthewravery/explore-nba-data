@@ -33,7 +33,7 @@ nba_pal <- function(whichteams = "all", ...){
 }
 
 
-nba_pal()
+# nba_pal()
 
 
 scale_color_nba <- function(whichteams = "all", ...){
