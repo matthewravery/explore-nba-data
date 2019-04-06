@@ -83,6 +83,23 @@ fiveplayers <- function(tb){
 #   mutate(netpoints = pmap_dbl(list(points, currentteam, team), get_net_points)) %>%
 #   select(-team) %>% rename(team = currentteam)
 
+#These next two functions are used to re-arrange the player names to always be alphabetical. So the first position will always be the player who is first alphabetically of the players on the court for his team. This is important when we attempt to group by five-man units, etc.
+#note that it would be more efficient to do this at other places where I'm re-naming the player columns, but I don't want to risk screwing that up at this point. 
+
+make_player_list <- function(p1, p2, p3, p4, p5){
+  
+  fiveplayers <-tibble(players = c(p1, p2, p3, p4, p5)) %>% 
+    arrange(players)
+  
+  fiveplayers
+  
+}
+
+get_player <- function(fiveplayers, num = 1){
+  
+  fiveplayers[[1]][num]
+}
+
 get_team_events <- function(whichteam, tb){
   
   out <- NULL
@@ -93,7 +110,14 @@ get_team_events <- function(whichteam, tb){
     teamtbl <- tb %>% 
       mutate(currentteam = thatteam) %>% 
       filter(hometeam == currentteam | awayteam == currentteam) %>% 
-      fiveplayers()
+      fiveplayers() %>% 
+      mutate(fiveplayers = pmap(list(p1, p2, p3, p4, p5), make_player_list),
+             p1 = map_chr(fiveplayers, get_player, 1),
+             p2 = map_chr(fiveplayers, get_player, 2),
+             p3 = map_chr(fiveplayers, get_player, 3),
+             p4 = map_chr(fiveplayers, get_player, 4),
+             p5 = map_chr(fiveplayers, get_player, 5)) %>% select(-fiveplayers)
+      
     
     thisteamsplayers <- get_this_teams_players(teamtbl, thatteam)
     
