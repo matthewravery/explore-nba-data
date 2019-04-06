@@ -5,7 +5,9 @@ tbraw <- read_csv("data/2017-2018_NBA_PbP_Logs/[10-17-2017]-[06-08-2018]-combine
   mutate(game_id = as.numeric(str_extract(game_id, "\\d+")) )
 
 teamsandplayers <- tbraw %>% 
-  filter(elapsed > 0) %>% #eliminates weird cases like opening jump ball
+  filter(elapsed > 0,
+         type == "jump ball") %>% 
+  #jump balls appear to cause a problem with matching teams and players, producing weird results
   select(player, team) %>% 
   filter(!is.na(player)) %>% 
   distinct() 
