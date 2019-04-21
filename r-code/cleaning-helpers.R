@@ -131,3 +131,124 @@ get_team_events <- function(whichteam, tb){
   out %>% group_by(team) %>% nest(.key = `team events`)
   
 }
+
+
+add_index <- function(x){
+  n <- nrow(x)
+  x$mplay_id <- 1:n
+  x
+}
+
+
+
+#simple map of three-letter city abbreviations to team names
+city_to_team <- function(cty3){
+  
+  city2team <- tibble(city3 = c("ATL", "BOS", "BKN", "CHA", "CHI", "CLE", "DAL", "DEN",
+                                "DET", "GSW", "HOU", "IND", "LAC", "LAL", "MEM", "MIA",
+                                "MIL", "MIN", "NOP", "NYK", "OKC", "ORL", "PHI", "PHX",
+                                "POR", "SAC", "SAS", "TOR", "UTA", "WAS"),
+                      team = c("HAWKS", "CELTICS", "NETS", "HORNETS", "BULLS", "CAVELIERS",
+                               "MAVERICKS", "NUGGETS", "PISTONS", "WARRIORS", "ROCKETS",
+                               "PACERS", "CLIPPERS", "LAKERS", "GRIZZLIES", "HEAT",
+                               "BUCKS", "TIMBERWOLVES", "PELICANS", "KNICKS", "THUNDER",
+                               "MAGIC", "76ERS", "SUNS", "TRAIL BLAZERS", "KINGS",
+                               "SPURS", "RAPTORS", "JAZZ", "WIZARDS"))
+  
+  filter(city2team, city3 == cty3)$team
+  
+}
+
+
+
+
+#This monstrosity identifies offensive rebounds in order to make it easier to identify breaks in posession
+
+id_orebs <- function(teamtbl, thatteam){
+  # this is currently written to interface with team-specific dataframes. 
+  # There's no good reason for this, and it would be more efficient to 
+  # re-write and create this column for the full data table.
+  
+  ftmiss <- teamtbl %>% 
+    filter(event_type == "free throw", type %in% c("Free Throw 1 of 1",
+                                                   "Free Throw 2 of 2",
+                                                   "Free Throw 3 of 3")) %>% 
+    mutate(miss = map_chr(description, str_match, "MISS"),
+           shooterhome = (player %in% c(o1, o2, o3, o4, o5)), hometeam == thatteam) %>% 
+    filter(miss == "MISS") 
+  
+  
+  omiss <- teamtbl %>% filter(event_type == "miss") %>% 
+    mutate(miss = "MISS",
+           shooterhome = (player %in% c(o1, o2, o3, o4, o5)), hometeam == thatteam)
+  
+  smiss <- bind_rows(ftmiss, omiss) %>% 
+    select(game_id, mplay_id, miss, shooterhome) %>% 
+    mutate(old_id = mplay_id,
+           mplay_id = mplay_id + 1) %>% 
+    arrange(mplay_id) 
+  
+  #two weird issues remain:  One, sometimes the data frame has a substitute recorded after the 2nd ft instead of before it. we shoudl try to skip these and just get the subsequent play. Two, sometimes the rebound is omitted all together and there's just another play next. This we can basically ignore, assuming that the team that recovered the ball is indicated by the player shooting the next shot. 
+  
+  smiss$mplay_id[left_join(smiss, teamtbl)$event_type == "sub"] <- 
+    smiss$mplay_id[left_join(smiss, teamtbl)$event_type == "sub"] + 1
+  
+  ab <- smiss %>% left_join(teamtbl) %>% 
+    filter(event_type == "rebound") %>% 
+    select(event_type, description, shooterhome, o1, o2, o3, o4, o5, player, 
+           hometeam, shooterhome, mplay_id, old_id) %>% 
+    separate(description, into = "rbname", sep = " ", extra = "drop") %>% 
+    mutate(homelong = map_chr(hometeam, city_to_team),
+           rbhome = (player %in% c(o1, o2, o3, o4, o5)), hometeam == thatteam,
+           teamrbhome = rbname == homelong,
+           isoreb = pmap_lgl(list(rbhome, teamrbhome, shooterhome),
+                             function(a, b, c) {(a||b) && c }))
+  
+  
+  bb <- smiss %>% left_join(teamtbl) %>% 
+    filter(event_type != "rebound", !is.na(player)) %>% 
+    select(event_type, description, shooterhome, o1, o2, o3, o4, o5,
+           player, hometeam, shooterhome, mplay_id, old_id) %>% 
+    separate(description, into = "rbname", sep = " ", extra = "drop") %>% 
+    mutate(homelong = map_chr(hometeam, city_to_team),
+           rbhome = (player %in% c(o1, o2, o3, o4, o5)), hometeam == thatteam,
+           teamrbhome = rbname == homelong,
+           isoreb = pmap_lgl(list(rbhome, teamrbhome, shooterhome),
+                             function(a, b, c) {(a||b) && c }))
+  
+  
+  
+  
+  teamtbl %>% left_join(
+    (bind_rows(ab, bb) %>% select(isoreb, old_id) %>% 
+       rename(mplay_id = old_id))
+  )
+}
+
+
+# These two functions break the data table up by possessions
+possession_change <- function(tb){
+  # This function identifies whether a particular event resulted in a change-of-possession
+  
+  tb %>% 
+    mutate(possessionchange = map2_lgl(event_type, isoreb, 
+                                       function(a, b) {a == "turnover" |
+                                           a == "shot" |
+                                           !b}))
+}
+
+pos_count <- function(rb){
+  
+  possessioncount <- rep(0, nrow(rb))
+  
+  counter <- 1
+  for(i in 1:nrow(rb)){
+    if(is.na(rb$possessionchange[i])) counter <- counter else
+      if(rb$possessionchange[i]) counter <- counter + 1 
+      possessioncount[i] <- counter
+  }
+  
+  rb$possessioncount <- possessioncount
+  rb
+  
+}
