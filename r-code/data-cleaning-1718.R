@@ -21,6 +21,8 @@ fl <- list.files("data/2017-2018_NBA_PbP_Logs")[-1] %>%
   separate(otherinfo, into = c("awayteam", "other"), sep = "@") %>% 
   separate(other, into = "hometeam", sep = ".csv", extra = "drop")
 
+# write_csv(fl, "data/games-by-home-and-away-teams.csv")
+
 tb <- tbraw %>% 
   left_join(fl) %>% 
   mutate(pointchange = map_lgl(points, score_changed)) 

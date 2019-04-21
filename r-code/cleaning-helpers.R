@@ -62,7 +62,7 @@ fiveplayers <- function(tb){
   tb2 <- tb %>% filter(currentteam == awayteam) %>% 
     rename(p1 = a1, p2 = a2, p3 = a3, p4 = a4, p5 = a5, o1 = h1, o2 = h2, o3 = h3, o4 = h4, o5 = h5)
   
-  bind_rows(tb1, tb2)
+  bind_rows(tb1, tb2) %>% arrange(game_id)
   
 }
 
@@ -116,13 +116,18 @@ get_team_events <- function(whichteam, tb){
              p2 = map_chr(fiveplayers, get_player, 2),
              p3 = map_chr(fiveplayers, get_player, 3),
              p4 = map_chr(fiveplayers, get_player, 4),
-             p5 = map_chr(fiveplayers, get_player, 5)) %>% select(-fiveplayers)
+             p5 = map_chr(fiveplayers, get_player, 5)) %>% select(-fiveplayers) %>% 
+      arrange(game_id) %>% 
+      add_index() %>% 
+      id_orebs(thatteam)
       
     
     thisteamsplayers <- get_this_teams_players(teamtbl, thatteam)
     
     out <- teamtbl %>% 
       add_subsections(thisteamsplayers) %>% 
+      possession_change() %>% 
+      pos_count() %>% 
       mutate(netpoints = pmap_dbl(list(points, currentteam, team), get_net_points)) %>% 
       select(-team) %>% rename(team = currentteam) %>% 
       bind_rows(out)
