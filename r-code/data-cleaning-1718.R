@@ -12,10 +12,18 @@ teamsandplayers <- tbraw %>%
   filter(!is.na(player)) %>% 
   distinct() 
 
+
+fl <- list.files("data/2017-2018_NBA_PbP_Logs")[-1] %>% 
+  str_split("-", 5) %>% unlist() %>%  matrix(ncol = 5, byrow = T) %>% 
+  as_tibble() %>% 
+  select(V4, V5) %>% rename(game_id = V4, otherinfo = V5) %>% 
+  mutate(game_id = as.double(game_id)) %>% 
+  separate(otherinfo, into = c("awayteam", "other"), sep = "@") %>% 
+  separate(other, into = "hometeam", sep = ".csv", extra = "drop")
+
 tb <- tbraw %>% 
-  mutate(hometeam = get_team(h1, teamsandplayers),
-         awayteam = get_team(a1, teamsandplayers),
-         pointchange = map_lgl(points, score_changed)) 
+  left_join(fl) %>% 
+  mutate(pointchange = map_lgl(points, score_changed)) 
 
 
 allteams <- tb %>% 
