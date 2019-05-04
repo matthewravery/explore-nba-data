@@ -284,3 +284,12 @@ pos_count <- function(rb){
   rb
   
 }
+get_team_players <- function(tb){
+  
+  tb %>%
+    select(p1, p2, p3, p4, p5) %>%
+    gather(key = "slot", value = "player", p1, p2, p3, p4, p5) %>%
+    select(-slot) %>%
+    distinct()
+}
+
