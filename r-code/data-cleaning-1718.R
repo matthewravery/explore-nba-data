@@ -38,3 +38,10 @@ tmp <- left_join(allteams, get_team_events(allteams, tb))
 
 write_rds(tmp, "clean-data/team-events-1718.rds")
 
+
+
+tmp %>% 
+  mutate(playerlist = map(`team events`, get_team_players)) %>% 
+  select(team, playerlist) %>% 
+  write_rds("clean-data/players-on-teams-1718.rds")
+
