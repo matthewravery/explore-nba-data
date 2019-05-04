@@ -100,6 +100,31 @@ get_player <- function(fiveplayers, num = 1){
   fiveplayers[[1]][num]
 }
 
+
+add_simple_stat_indicators <- function(tb){
+  
+  bm %>% 
+    mutate(gotblk = map_lgl(description, str_detect, "BLOCK"),
+           gotstl = map_lgl(description, str_detect, "STEAL"),
+           gotreb = map_lgl(description, str_detect, "REBOUND"),
+           tfoulu = map_lgl(description, str_detect, "T.FOUL"),
+           tfoull = map_lgl(description, str_detect, "T.Foul"),
+           fgmade = event_type == "shot",
+           fgmiss = event_type == "miss",
+           shotft = event_type == "free throw",
+           foul = event_type == "foul",
+           turnover = event_type == "turnover",
+           shot3 = map_lgl(description, str_detect, "3PT"),
+           made3 = map2_lgl(shot3, fgmade, function(a, b) a && b),
+           miss3 = map2_lgl(shot3, fgmiss, function(a, b) a && b),
+           missathing = map_lgl(description, str_detect, "MISS"),
+           madeft = map2_lgl(shotft, !missathing, function(a, b) a && b),
+           missft = map2_lgl(shotft, missathing, function(a, b) a && b),
+           tfoul = map2_lgl(tfoulu, tfoull, function(a, b) a | b),
+           pfoul = map2_lgl(foul, !tfoul , function(a, b) a && b)) 
+  
+}
+
 get_team_events <- function(whichteam, tb){
   
   out <- NULL
@@ -119,7 +144,9 @@ get_team_events <- function(whichteam, tb){
              p5 = map_chr(fiveplayers, get_player, 5)) %>% select(-fiveplayers) %>% 
       arrange(game_id) %>% 
       add_index() %>% 
-      id_orebs(thatteam)
+      id_orebs(thatteam) %>% 
+      add_simple_stat_indicators() %>% 
+      mutate(playoffs = game_id > 40000000) #game_id starts with 41 to indicate playoffs
       
     
     thisteamsplayers <- get_this_teams_players(teamtbl, thatteam)
