@@ -29,7 +29,7 @@ get_ast_and_player <- function(ab){
 # multiple players and therefore we have to create duplicate rows so that
 # we can attribute the different parts of each event (e.g. the assist
 # and the made basket) to different players
-get_ast_stl_blk <- function(tb){
+get_ast_stl_blk <- function(tb, pt){
   
   tb %>% 
     get_event_and_player("BLOCK") %>% 
@@ -42,13 +42,13 @@ get_ast_stl_blk <- function(tb){
                              )
     )) %>% filter(dropit) %>% 
     select(`BLOCK player`, `STEAL player`, `ASSIST player`, game_id, 
-           date, playoffs, mplay_id, possessioncount) %>% 
+           date, team, playoffs, mplay_id, possessioncount) %>% 
     gather(-game_id, -mplay_id, -possessioncount, -date, 
-           -playoffs,
+           -playoffs, -team,
            key = "description", value = "player") %>% 
     filter(!is.na(player)) %>% 
     mutate(description = map_chr(description, str_sub, end = -8)) %>% 
-    bind_rows(tb)
+    bind_rows(tb) %>% filter(player %in% pt$player)
 }
 
 
@@ -102,9 +102,10 @@ make_simple_stats_game_log <- function(tb){
 # ... and this aggregates them across the whole season. 
 # I had to find a good way to filter out for regular-season-only, and I'm 
 # stil not sure I ended up with intuitive naming conventions here. 
-make_simple_stats_pergame <- function(tb, useregularseason = T){
+make_simple_stats_pergame <- function(tb, tn, useregularseason = T){
   
   tb %>% 
+    mutate(team = tn) %>% 
     filter(useregularseason != playoffs) %>%  
     # `playoffs` is an indicator taking the value T for playoff games
     group_by(player) %>% 
